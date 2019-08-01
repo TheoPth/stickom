@@ -1,8 +1,5 @@
 package tourism;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Scanner;
 
 public class Main {
@@ -24,7 +21,7 @@ public class Main {
 
 	private static void doActionOnTable(String tableChoose, String actionChoose) {
 		if (actionChoose.equals("new")) {
-			mysql.addNewRecordFromTable(tableChoose);
+			mysql.addNewRecordFromClass(tableChoose);
 			System.out.println("Succesfully added !");
 		} else if (actionChoose.equals("delete")) {
 			mysql.deleteRecord(tableChoose);
