@@ -1,5 +1,8 @@
 package tourism;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.Connection;
@@ -9,6 +12,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Properties;
 import java.util.Scanner;
 
 public class MySQLAccess {
@@ -16,30 +20,39 @@ public class MySQLAccess {
 	private Connection connect = null;
 	private Statement statement = null;
 	private ResultSet resultSet = null;
-
-	final private String bdName = "tourismManagement";
-	final private String host = "localhost";
-	final private String user = "root";
-	final private String passwd = "mysqlvitech";
+	
+	private String dbName = null;
 
 	/**
-	 * Connect to the database
+	 * Connect to the database, find propertied in extern file
 	 * 
 	 * @return able to execute statement in the database
+	 * @throws IOException
 	 */
 	private Connection getConnection() {
-		if (connect == null) {
-			try {
-				return DriverManager.getConnection(
-						"jdbc:mysql://" + host + "/tourismManagement?" + "user=" + user + "&password=" + passwd);
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-		} else {
-			return this.connect;
-		}
 
-		return null;
+		try {
+			Properties props = new Properties();
+			FileInputStream in = new FileInputStream("db.properties");
+			props.load(in);
+			in.close();
+
+			dbName = props.getProperty("jdbc.dbName");
+			String user = props.getProperty("jdbc.user");
+			String password = props.getProperty("jdbc.password");
+			String host = props.getProperty("jdbc.host");
+
+			if (connect == null) {
+				return DriverManager.getConnection(
+						"jdbc:mysql://" + host + "/" + dbName + "?" + "user=" + user + "&password=" + password);
+			} else {
+				return this.connect;
+			}
+
+		} catch (IOException | SQLException e) {
+
+		} 
+			return null;
 	}
 
 	/**
@@ -52,16 +65,17 @@ public class MySQLAccess {
 		try {
 			statement = connect.createStatement();
 			resultSet = statement.executeQuery(
-					"SELECT table_name FROM information_schema.tables WHERE table_schema ='" + bdName + "'");
+					"SELECT table_name FROM information_schema.tables WHERE table_schema ='" + dbName + "'");
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 
 		return resultSet;
 	}
-	
+
 	/**
 	 * Retrieve all record of a table of the database
+	 * 
 	 * @param name
 	 * @return ResultSet of record
 	 */
@@ -76,11 +90,12 @@ public class MySQLAccess {
 
 		return resultSet;
 	}
-	
+
 	/**
 	 * Ask the database to know if a table exist
+	 * 
 	 * @param tableName
-	 * @return 
+	 * @return
 	 */
 	public boolean checkTableExist(String tableName) {
 		ResultSet tables = this.getAllTableName();
@@ -96,23 +111,24 @@ public class MySQLAccess {
 
 		return false;
 	}
-	
+
 	/**
 	 * Save the Object in a bd mysql
+	 * 
 	 * @param obj
 	 */
 	public void saveNewEntitie(Object obj) {
 		Connection connect = this.getConnection();
-		
+
 		String query = "insert into " + obj.getClass().getSimpleName().toLowerCase() + " values(";
-		
+
 		Field[] fields = obj.getClass().getDeclaredFields();
 		try {
 			Statement stat = connect.createStatement();
-			
+
 			for (Field field : fields) {
 				field.setAccessible(true);
-				
+
 				if (field.getType().equals(Integer.class)) {
 					query += field.get(obj);
 				} else {
@@ -129,9 +145,10 @@ public class MySQLAccess {
 			e.printStackTrace();
 		}
 	}
-	 
+
 	/**
-	 * Create and save recored 
+	 * Create and save recored
+	 * 
 	 * @param tableName record who want to be created
 	 * @return
 	 */
@@ -140,7 +157,7 @@ public class MySQLAccess {
 		try {
 			newEntitie = Utils.instanceByClassName(tableName);
 			ArrayList<Method> methods = getAllSettersFromClass(tableName);
-			
+
 			for (Method m : methods) {
 				System.out.println("Choose " + presentSetter(m.getName()));
 				Utils.askField(m, newEntitie);
@@ -151,18 +168,17 @@ public class MySQLAccess {
 		}
 		return newEntitie;
 	}
-	
+
 	/**
 	 * Take of the prefix set of the setter name
+	 * 
 	 * @param setter
 	 * @return
 	 */
 	private static String presentSetter(String setter) {
 		return setter.substring(3).toUpperCase();
 	}
-	
-	
-	
+
 	/**
 	 * 
 	 * @param tableName
@@ -171,11 +187,11 @@ public class MySQLAccess {
 	static public ArrayList<Method> getAllSettersFromClass(String tableName) {
 		// Class always has a uppercase at the beginning
 		ArrayList<Method> setters = new ArrayList<>();
-		
+
 		try {
 			Object obj = Utils.instanceByClassName(tableName);
 			Method[] methods = obj.getClass().getMethods();
-			
+
 			for (Method m : methods) {
 				if (Utils.isSetter(m)) {
 					setters.add(m);
@@ -185,7 +201,7 @@ public class MySQLAccess {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
+
 		return setters;
 
 	}
@@ -240,6 +256,7 @@ public class MySQLAccess {
 
 	/**
 	 * Delete a selected record from an asked id
+	 * 
 	 * @param tableChoose
 	 */
 	public void deleteRecord(String tableChoose) {
